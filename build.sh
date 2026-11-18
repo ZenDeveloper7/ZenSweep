@@ -9,14 +9,14 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD/swift-cache"
 FLAGS=(--package-path "$ROOT" --scratch-path "$BUILD/swiftpm" --cache-path "$BUILD/cache" --config-path "$BUILD/config" --security-path "$BUILD/security" --disable-sandbox)
 swift build "${FLAGS[@]}" -c release -debug-info-format none
 BIN="$(swift build "${FLAGS[@]}" -c release -debug-info-format none --show-bin-path)"
-APP="$DEST/ZenSweep.app"
+APP="$BUILD/package/ZenSweep.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/ZenSweep" "$APP/Contents/MacOS/ZenSweep"
 /usr/libexec/PlistBuddy -c 'Clear dict' "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
 python3 - "$APP/Contents/Info.plist" <<'PY'
 import plistlib, sys
 with open(sys.argv[1], 'wb') as f:
-    plistlib.dump(dict(CFBundleName='ZenSweep', CFBundleDisplayName='ZenSweep', CFBundleIdentifier='in.builtbyzen.ZenSweep', CFBundleExecutable='ZenSweep', CFBundlePackageType='APPL', CFBundleShortVersionString='0.2.0', CFBundleVersion='2', CFBundleIconFile='ZenSweep', LSMinimumSystemVersion='14.0', NSHighResolutionCapable=True, NSPrincipalClass='NSApplication', NSDocumentsFolderUsageDescription='Scan folders you select to find large files and show storage usage.', NSDownloadsFolderUsageDescription='Scan downloads you select to find large files.'), f)
+    plistlib.dump(dict(CFBundleName='ZenSweep', CFBundleDisplayName='ZenSweep', CFBundleIdentifier='in.builtbyzen.ZenSweep', CFBundleExecutable='ZenSweep', CFBundlePackageType='APPL', CFBundleShortVersionString='0.2.1', CFBundleVersion='3', CFBundleIconFile='ZenSweep.icns', LSMinimumSystemVersion='14.0', NSHighResolutionCapable=True, NSPrincipalClass='NSApplication', NSDocumentsFolderUsageDescription='Scan folders you select to find large files and show storage usage.', NSDownloadsFolderUsageDescription='Scan downloads you select to find large files.'), f)
 PY
 swiftc -parse-as-library -module-cache-path "$BUILD/swift-cache" "$ROOT/Sources/ZenSweep/LogoArtwork.swift" "$ROOT/Tools/MakeIcon.swift" -o "$BUILD/MakeIcon"
 "$BUILD/MakeIcon" "$BUILD/icon.png"
@@ -39,4 +39,8 @@ payload = b''.join(chunks)
 Path(sys.argv[2]).write_bytes(b'icns' + struct.pack('>I', len(payload) + 8) + payload)
 PYICON
 codesign --force --sign - "$APP"
-echo "$APP"
+# Publish only after resources and signing are complete.
+ditto "$APP" "$DEST/ZenSweep.app"
+touch "$DEST/ZenSweep.app"
+codesign --verify --strict "$DEST/ZenSweep.app"
+echo "$DEST/ZenSweep.app"
